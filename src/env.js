@@ -8,6 +8,9 @@ export const env = createEnv({
 	 */
 	server: {
 		NODE_ENV: z.enum(["development", "test", "production"]),
+		OPNSENSE_API_URL: z.string(),
+		OPNSENSE_API_KEY: z.string(),
+		OPNSENSE_API_SECRET: z.string(),
 	},
 
 	/**
@@ -25,6 +28,9 @@ export const env = createEnv({
 	 */
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
+		OPNSENSE_API_URL: process.env.OPNSENSE_API_URL,
+		OPNSENSE_API_KEY: process.env.OPNSENSE_API_KEY,
+		OPNSENSE_API_SECRET: process.env.OPNSENSE_API_SECRET,
 		// NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
 	},
 	/**
