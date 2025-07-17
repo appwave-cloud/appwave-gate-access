@@ -1,53 +1,97 @@
-import Link from "next/link";
+"use client";
 
-import { LatestPost } from "@/app/_components/post";
-import { HydrateClient, api } from "@/trpc/server";
+import { useState } from "react";
+import { api } from "@/trpc/react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-export default async function Home() {
-	const hello = await api.post.hello({ text: "from tRPC" });
+export default function Home() {
+	const [username, setUsername] = useState("");
+	const [submitted, setSubmitted] = useState(false);
+	const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
-	void api.post.getLatest.prefetch();
+	const userQuery = api.firewall.getUserVpnConfig.useQuery(
+		{ username },
+		{ enabled: submitted && !!username }
+	);
+
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		setSubmitted(true);
+	};
+
+	const handleDownload = () => {
+		if (userQuery.data?.config) {
+			const blob = new Blob([userQuery.data.config], { type: "application/x-openvpn-profile" });
+			const url = URL.createObjectURL(blob);
+			setDownloadUrl(url);
+			setTimeout(() => URL.revokeObjectURL(url), 10000);
+		}
+	};
 
 	return (
-		<HydrateClient>
-			<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-				<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-					<h1 className="font-extrabold text-5xl tracking-tight sm:text-[5rem]">
-						Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-					</h1>
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/usage/first-steps"
-							target="_blank"
-						>
-							<h3 className="font-bold text-2xl">First Steps →</h3>
-							<div className="text-lg">
-								Just the basics - Everything you need to know to set up your
-								database and authentication.
+		<main className="flex min-h-screen flex-col items-center justify-center bg-background">
+			<div className="mx-4 w-full max-w-md">
+				<Card>
+					<CardHeader className="text-center">
+						<CardTitle className="text-2xl">OpenVPN Zugang</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<form onSubmit={handleSubmit} className="space-y-4">
+							<div className="space-y-2">
+								<input
+									type="text"
+									placeholder="Benutzername eingeben"
+									value={username}
+									onChange={e => { setUsername(e.target.value); setSubmitted(false); }}
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+									required
+								/>
 							</div>
-						</Link>
-						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/introduction"
-							target="_blank"
-						>
-							<h3 className="font-bold text-2xl">Documentation →</h3>
-							<div className="text-lg">
-								Learn more about Create T3 App, the libraries it uses, and how
-								to deploy it.
-							</div>
-						</Link>
-					</div>
-					<div className="flex flex-col items-center gap-2">
-						<p className="text-2xl text-white">
-							{hello ? hello.greeting : "Loading tRPC query..."}
-						</p>
-					</div>
+							<Button
+								type="submit"
+								className="w-full"
+								disabled={userQuery.isLoading}
+							>
+								{userQuery.isLoading ? "Suche..." : "Benutzer prüfen"}
+							</Button>
+						</form>
 
-					<LatestPost />
-				</div>
-			</main>
-		</HydrateClient>
+						{submitted && userQuery.isSuccess && userQuery.data.found && (
+							<div className="space-y-3 pt-4">
+								<Button
+									onClick={handleDownload}
+									variant="default"
+									className="w-full"
+								>
+									OpenVPN Konfiguration herunterladen
+								</Button>
+								{downloadUrl && (
+									<a
+										href={downloadUrl}
+										download={`${username}.ovpn`}
+										className="block text-center text-primary text-sm underline transition-colors hover:text-primary/80"
+									>
+										Download starten
+									</a>
+								)}
+							</div>
+						)}
+
+						{submitted && userQuery.isSuccess && !userQuery.data.found && (
+							<div className="pt-4">
+								<p className="text-center text-destructive text-sm">Benutzer nicht gefunden.</p>
+							</div>
+						)}
+
+						{userQuery.isError && (
+							<div className="pt-4">
+								<p className="text-center text-destructive text-sm">Fehler bei der Anfrage.</p>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</div>
+		</main>
 	);
 }
